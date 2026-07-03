@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nile Wood Chemicals
 
-## Getting Started
+فروشگاه کامل فارسی و راست‌چین برای محصولات رنگ چوب، مواد شیمیایی، پوشش‌های محافظتی، روغن چوب، کیلر، سیلر، بتونه، تینر و رزین.
 
-First, run the development server:
+## اجرا
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+فایل `.env.example` را به `.env.local` تبدیل کنید و مقادیر Supabase و زرین‌پال را وارد کنید.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+اسکریپت کامل دیتابیس، RLS، trigger ساخت profile و policyهای Storage در مسیر زیر قرار دارد:
 
-## Learn More
+```text
+supabase/schema.sql
+```
 
-To learn more about Next.js, take a look at the following resources:
+بعد از اجرای SQL، برای ادمین کردن یک کاربر:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sql
+update public.profiles set role = 'admin' where email = 'admin@example.com';
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## مسیرهای اصلی
 
-## Deploy on Vercel
+- `/` صفحه اصلی
+- `/shop` و `/products` فروشگاه و محصولات
+- `/products/[slug]` جزئیات محصول
+- `/cart` سبد خرید
+- `/account/orders` سفارشات کاربر و دکمه نهایی کردن سفارش
+- `/payment/callback` callback پرداخت
+- `/blog` و `/blog/[slug]` مجله
+- `/wholesale` فرم خرید عمده
+- `/nile-admin-wood-control` مسیر مخفی پنل ادمین
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+مسیر `/admin` عمداً 404 است و در منوی سایت هم لینک ادمین نمایش داده نمی‌شود.
+برای ورود اولیه پنل، مقادیر زیر را در `.env.local` تنظیم کنید. بعد از این مرحله،
+اگر Supabase فعال باشد نقش `admin` از جدول `profiles` هم بررسی می‌شود.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+NEXT_PUBLIC_ADMIN_PANEL_USERNAME=
+NEXT_PUBLIC_ADMIN_PANEL_PASSWORD=
+```
+
+در پنل ادمین، تب «مدیریت تصاویر سایت» برای تغییر همه تصاویر استفاده‌شده در
+صفحه اصلی، درباره ما، محصولات، مقالات و اسلایدر برندها اضافه شده است. این بخش
+در Supabase از جدول `site_assets` و bucket `public-assets` استفاده می‌کند.
+
+## پرداخت زرین‌پال
+
+متغیرهای زیر را تنظیم کنید:
+
+```text
+NEXT_PUBLIC_ZARINPAL_MERCHANT_ID=
+NEXT_PUBLIC_ZARINPAL_CALLBACK_URL=http://localhost:3000/payment/callback
+```
+
+برای production توصیه می‌شود مرحله verification و نگهداری Merchant ID در Supabase Edge Function انجام شود.
