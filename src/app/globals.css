@@ -461,6 +461,31 @@ img {
   border-radius: 8px;
 }
 
+.image-skeleton,
+.hero-media,
+.split-image,
+.article-image,
+.blog-image,
+.product-image,
+.detail-image,
+.category-round-image,
+.nile-service-image {
+  background:
+    linear-gradient(90deg, #eef3ed 0%, #f8fbf7 42%, #e6eee6 78%);
+  background-size: 220% 100%;
+  animation: image-skeleton-shimmer 1.25s ease-in-out infinite;
+}
+
+@keyframes image-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .hero-media {
   min-height: 420px;
   box-shadow: var(--shadow);
@@ -678,7 +703,6 @@ img {
 .product-image {
   display: block;
   height: 160px;
-  background: #eef2ed;
 }
 
 .discount {
@@ -1174,6 +1198,62 @@ del {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.swal-rtl {
+  direction: rtl;
+  font-family: inherit;
+}
+
+.math-captcha {
+  display: grid;
+  grid-template-columns: 1fr minmax(88px, 110px) 42px;
+  gap: 10px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(204, 230, 108, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(10, 42, 27, 0.96), rgba(16, 20, 17, 0.96)),
+    #101411;
+  padding: 12px;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.math-captcha span {
+  display: block;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+}
+
+.math-captcha strong {
+  display: block;
+  margin-top: 3px;
+  color: #cce66c;
+  font-size: 1.12rem;
+}
+
+.math-captcha input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 10px;
+  color: #101411;
+  text-align: center;
+}
+
+.math-captcha button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
 }
 
 .category-round-card {

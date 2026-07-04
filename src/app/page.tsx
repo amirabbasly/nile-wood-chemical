@@ -174,7 +174,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="relative min-h-[330px] overflow-hidden rounded-lg shadow-[0_16px_45px_rgba(18,33,22,0.12)] md:min-h-[460px]">
+                  <div className="image-skeleton relative min-h-[330px] overflow-hidden rounded-lg shadow-[0_16px_45px_rgba(18,33,22,0.12)] md:min-h-[460px]">
                     <Image
                       src={byKey[slide.assetKey]?.imageUrl}
                       alt={slide.title}

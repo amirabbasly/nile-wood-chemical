@@ -1,14 +1,27 @@
 create extension if not exists "pgcrypto";
 
+-- Username login/register note:
+-- The app stores usernames in public.profiles.username and uses a synthetic
+-- auth email like username@nilewoodchemicals.local for Supabase Auth.
+-- In Supabase Dashboard, disable:
+-- Authentication > Providers > Email > Confirm email
+-- This setting cannot be changed from the SQL Editor.
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   phone text,
+  username text,
   email text,
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists username text;
+create unique index if not exists profiles_username_unique
+on public.profiles (lower(username))
+where username is not null and username <> '';
 
 create table if not exists public.product_categories (
   id text primary key,
@@ -163,11 +176,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, phone, email, role)
+  insert into public.profiles (id, full_name, phone, username, email, role)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', ''),
     coalesce(new.raw_user_meta_data->>'phone', ''),
+    nullif(lower(coalesce(new.raw_user_meta_data->>'username', '')), ''),
     new.email,
     'user'
   )

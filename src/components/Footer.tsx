@@ -53,6 +53,7 @@ export function Footer() {
       <div className="container footer-bottom">
         <span>{settings.footerBottomRight}</span>
         <span>{settings.footerBottomLeft}</span>
+        <span>طراحی و توسعه داده شده توسط تیم فست مارکتینگ</span>
       </div>
     </footer>
   );
