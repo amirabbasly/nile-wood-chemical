@@ -49,6 +49,26 @@ export default function ProductDetailPage() {
               {product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}
             </div>
             <div className="stock">موجودی: {product.stock} عدد</div>
+            {product.volume && <div className="product-volume"><strong>حجم محصول:</strong> {product.volume} لیتر</div>}
+            {product.applicationGuide && (
+              <div className="application-guide">
+                <strong>آموزش اجرای رنگ</strong>
+                <p>{product.applicationGuide}</p>
+              </div>
+            )}
+            {!!product.colors?.length && (
+              <div className="product-colors">
+                <strong>کالیته رنگ محصول</strong>
+                <div className="product-color-list">
+                  {product.colors.map((color) => (
+                    <span key={`${color.name}-${color.value}`} title={color.name}>
+                      <i style={{ backgroundColor: color.value }} />
+                      {color.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="feature-list">
               {product.features.map((feature) => (
                 <span key={feature}>

@@ -23,6 +23,15 @@ type DbProduct = {
 const fallbackImage = "/logo/logo-image.jpg";
 
 export function mapDbProduct(product: DbProduct): Product {
+  const rawFeatures = product.features || [];
+  const volume = rawFeatures.find((item) => item.startsWith("__volume:"))?.slice(9) || "";
+  const applicationGuide = rawFeatures.find((item) => item.startsWith("__application:"))?.slice(14) || "";
+  const colors = rawFeatures
+    .filter((item) => item.startsWith("__color:"))
+    .map((item) => {
+      const [name, value] = item.slice(8).split("|");
+      return { name: name || "رنگ محصول", value: value || "transparent" };
+    });
   return {
     id: product.id,
     title: product.title,
@@ -34,7 +43,10 @@ export function mapDbProduct(product: DbProduct): Product {
     image: product.image_url || fallbackImage,
     summary: product.summary || "",
     description: product.description || product.summary || "",
-    features: product.features?.length ? product.features : [],
+    features: rawFeatures.filter((item) => !item.startsWith("__volume:") && !item.startsWith("__color:") && !item.startsWith("__application:")),
+    volume,
+    applicationGuide,
+    colors,
     published: product.published,
     brand: product.brand || "Nile Wood",
   };

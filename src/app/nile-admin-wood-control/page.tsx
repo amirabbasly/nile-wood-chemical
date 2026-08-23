@@ -100,8 +100,13 @@ export default function AdminPage() {
     summary: "",
     description: "",
     features: "",
+    volume: "",
+    applicationGuide: "",
+    colors: "",
     published: true,
   });
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [savingProduct, setSavingProduct] = useState(false);
   const [articleForm, setArticleForm] = useState({
     title: "",
     excerpt: "",
@@ -269,6 +274,8 @@ export default function AdminPage() {
 
   async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingProduct) return;
+    setSavingProduct(true);
     try {
       if (!supabase) {
         setNotice("Supabase تنظیم نیست؛ محصول در دیتابیس ذخیره نشد.");
@@ -277,6 +284,7 @@ export default function AdminPage() {
 
       const price = Number(productForm.price);
       const stock = Number(productForm.stock);
+      const volume = Number(productForm.volume);
       if (!Number.isFinite(price) || price < 0) {
         setNotice("قیمت محصول باید عدد معتبر و بزرگ‌تر یا مساوی صفر باشد.");
         return;
@@ -285,12 +293,21 @@ export default function AdminPage() {
         setNotice("موجودی محصول باید عدد صحیح و بزرگ‌تر یا مساوی صفر باشد.");
         return;
       }
+      if (!Number.isFinite(volume) || volume <= 0) {
+        setNotice("حجم محصول باید یک عدد معتبر و بزرگ‌تر از صفر باشد.");
+        return;
+      }
 
       const file = new FormData(event.currentTarget).get("image") as File;
       const imageUrl = file?.size ? await uploadImage(file) : "";
-      const { data, error } = await supabase
-        .from("products")
-        .insert({
+      const colorFeatures = productForm.colors.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [name, value] = line.split("|").map((part) => part.trim());
+        const normalizedValue = value
+          ? (value.endsWith("#") ? `#${value.slice(0, -1)}` : value.startsWith("#") ? value : `#${value}`)
+          : "transparent";
+        return `__color:${name || "رنگ محصول"}|${normalizedValue}`;
+      });
+      const payload = {
           title: productForm.title,
           slug,
           price,
@@ -299,10 +316,19 @@ export default function AdminPage() {
           brand: "Nile Wood",
           summary: productForm.summary,
           description: productForm.description,
-          features: productForm.features.split("\n").filter(Boolean),
+          features: [
+            ...productForm.features.split("\n").map((item) => item.trim()).filter(Boolean),
+            `__volume:${volume}`,
+            ...(productForm.applicationGuide.trim() ? [`__application:${productForm.applicationGuide.trim()}`] : []),
+            ...colorFeatures,
+          ],
           published: productForm.published,
-          image_url: imageUrl,
-        })
+          ...(imageUrl ? { image_url: imageUrl } : {}),
+        };
+      const query = editingProductId
+        ? supabase.from("products").update(payload).eq("id", editingProductId)
+        : supabase.from("products").insert(payload);
+      const { data, error } = await query
         .select("*")
         .single();
 
@@ -317,7 +343,7 @@ export default function AdminPage() {
             published: data.published,
             source: "supabase",
           },
-          ...current.filter((item) => item.source !== "demo"),
+          ...current.filter((item) => item.source !== "demo" && item.id !== data.id),
         ]);
       }
 
@@ -329,12 +355,69 @@ export default function AdminPage() {
         summary: "",
         description: "",
         features: "",
+        volume: "",
+        applicationGuide: "",
+        colors: "",
         published: true,
       });
-      setNotice("محصول ذخیره شد.");
+      setEditingProductId(null);
+      setNotice(editingProductId ? "ویرایش محصول با موفقیت ذخیره شد." : "محصول ذخیره شد.");
     } catch (error) {
-      setNotice(`خطا در ذخیره محصول: ${error instanceof Error ? error.message : "نامشخص"}`);
+      const message = error instanceof Error
+        ? error.message
+        : typeof error === "object" && error && "message" in error
+          ? String(error.message)
+          : "نامشخص";
+      setNotice(message === "Failed to fetch"
+        ? "ارتباط با سرور برقرار نشد. اینترنت و تنظیمات Supabase را بررسی کنید و دوباره تلاش کنید."
+        : `خطا در ذخیره محصول: ${message}`);
+    } finally {
+      setSavingProduct(false);
     }
+  }
+
+  function cancelProductEdit() {
+    setEditingProductId(null);
+    setProductForm({
+      title: "",
+      price: "",
+      stock: "",
+      category: productCategories[0].slug,
+      summary: "",
+      description: "",
+      features: "",
+      volume: "",
+      applicationGuide: "",
+      colors: "",
+      published: true,
+    });
+    setNotice("ویرایش محصول لغو شد.");
+  }
+
+  async function editProduct(item: AdminProductItem) {
+    if (!supabase || item.source !== "supabase") return;
+    const { data, error } = await supabase.from("products").select("*").eq("id", item.id).single();
+    if (error || !data) {
+      setNotice(`خطا در دریافت محصول: ${error?.message || "محصول پیدا نشد"}`);
+      return;
+    }
+    const features = (data.features || []) as string[];
+    setProductForm({
+      title: data.title || "",
+      price: String(data.price ?? ""),
+      stock: String(data.stock ?? ""),
+      category: data.category_id || productCategories[0].slug,
+      summary: data.summary || "",
+      description: data.description || "",
+      features: features.filter((value) => !value.startsWith("__volume:") && !value.startsWith("__color:") && !value.startsWith("__application:")).join("\n"),
+      volume: features.find((value) => value.startsWith("__volume:"))?.slice(9) || "",
+      applicationGuide: features.find((value) => value.startsWith("__application:"))?.slice(14) || "",
+      colors: features.filter((value) => value.startsWith("__color:")).map((value) => value.slice(8)).join("\n"),
+      published: Boolean(data.published),
+    });
+    setEditingProductId(item.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setNotice("محصول برای ویرایش در فرم باز شد.");
   }
 
   async function deleteProduct(item: AdminProductItem) {
@@ -596,14 +679,24 @@ export default function AdminPage() {
                 <Input label="خلاصه" full value={productForm.summary} onChange={(summary) => setProductForm({ ...productForm, summary })} />
                 <Text label="توضیحات" value={productForm.description} onChange={(description) => setProductForm({ ...productForm, description })} />
                 <Text label="ویژگی‌ها، هر خط یک مورد" value={productForm.features} onChange={(features) => setProductForm({ ...productForm, features })} />
+                <div className="field">
+                  <label>حجم محصول</label>
+                  <div className="input-with-unit">
+                    <input required min="0.01" step="0.01" type="number" value={productForm.volume} onChange={(event) => setProductForm({ ...productForm, volume: event.target.value })} />
+                    <span>لیتر</span>
+                  </div>
+                </div>
+                <Text label="آموزش اجرای رنگ" value={productForm.applicationGuide} onChange={(applicationGuide) => setProductForm({ ...productForm, applicationGuide })} required={false} />
+                <Text label="کالیته رنگ (هر خط: نام | کد رنگ)" value={productForm.colors} onChange={(colors) => setProductForm({ ...productForm, colors })} />
                 <div className="field full">
                   <label>تصویر محصول</label>
                   <input name="image" type="file" accept="image/*" />
                 </div>
               </div>
-              <button className="btn"><PackagePlus size={18} /> ذخیره محصول</button>
+              <button className="btn" disabled={savingProduct}><PackagePlus size={18} /> {savingProduct ? "در حال ذخیره…" : editingProductId ? "ذخیره ویرایش محصول" : "ذخیره محصول"}</button>
+              {editingProductId && <button type="button" className="btn ghost" onClick={cancelProductEdit}>انصراف از ویرایش</button>}
             </form>
-            <EntityList items={adminProducts} kind="product" onDelete={deleteProduct} />
+            <EntityList items={adminProducts} kind="product" onDelete={deleteProduct} onEdit={editProduct} />
           </AdminPanel>
         )}
 
@@ -862,11 +955,11 @@ function Input({ label, value, onChange, type = "text", full = false }: { label:
   );
 }
 
-function Text({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function Text({ label, value, onChange, required = true }: { label: string; value: string; onChange: (value: string) => void; required?: boolean }) {
   return (
     <div className="field full">
       <label>{label}</label>
-      <textarea required rows={5} value={value} onChange={(e) => onChange(e.target.value)} />
+      <textarea required={required} rows={5} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -940,10 +1033,12 @@ function EntityList({
   items,
   kind,
   onDelete,
+  onEdit,
 }: {
   items: EntityItem[];
   kind: string;
   onDelete?: (item: AdminProductItem) => void;
+  onEdit?: (item: AdminProductItem) => void;
 }) {
   return (
     <div className="panel table-panel">
@@ -952,7 +1047,7 @@ function EntityList({
           <strong>{item.title}</strong>
           <span>{kind === "product" ? item.stock + " عدد" : item.author}</span>
           <span className="badge">{item.published ? "منتشر شده" : "پیش‌نویس"}</span>
-          <button className="btn ghost" title="ویرایش"><Edit3 size={16} /></button>
+          <button type="button" className="btn ghost" title="ویرایش" onClick={() => onEdit?.(item as AdminProductItem)}><Edit3 size={16} /></button>
           <button
             className="btn ghost"
             title="حذف"

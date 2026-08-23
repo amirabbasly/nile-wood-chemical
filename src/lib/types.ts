@@ -19,6 +19,9 @@ export type Product = {
   summary: string;
   description: string;
   features: string[];
+  volume?: string;
+  applicationGuide?: string;
+  colors?: { name: string; value: string }[];
   published: boolean;
   brand: string;
 };
