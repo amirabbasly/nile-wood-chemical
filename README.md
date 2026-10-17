@@ -11,6 +11,20 @@ npm run dev
 
 فایل `.env.example` را به `.env.local` تبدیل کنید و مقادیر Supabase و زرین‌پال را وارد کنید.
 
+## استقرار روی سرور (production)
+
+راهنمای کامل استقرار Next.js، تنظیم Nginx/systemd، رفع خطای 502 و حذف وردپرس:
+
+```text
+DEPLOY-FA.md
+```
+
+استقرار خودکار از طریق GitHub Actions:
+
+> Actions → «Deploy Next.js to production» → Run workflow
+
+بیلد در GitHub انجام می‌شود و بسته standalone روی سرور مستقر می‌شود؛ بنابراین سرور به دسترسی npm یا GitHub نیاز ندارد.
+
 ## Supabase
 
 اسکریپت کامل دیتابیس، RLS، trigger ساخت profile و policyهای Storage در مسیر زیر قرار دارد:

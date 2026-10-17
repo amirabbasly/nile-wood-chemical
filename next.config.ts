@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // خروجی standalone برای استقرار روی سرور بدون نیاز به نصب node_modules
+  output: "standalone",
   reactCompiler: true,
   turbopack: {
     root: __dirname,
