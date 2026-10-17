@@ -25,42 +25,23 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: Probe server
         run: |
-          SSH=(sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST")
           set +e
-          "${SSH[@]}" 'bash -s' > deploy/probe-output.txt 2>&1 <<'REMOTE'
-          echo "=== date ==="; date -Is
-          echo "=== /tmp/nilewood-next ==="; ls -lh /tmp/nilewood-next/ 2>&1
-          S1=$(stat -c %s /tmp/nilewood-next/nilewood-next.tar.gz 2>/dev/null || echo 0)
-          sleep 8
-          S2=$(stat -c %s /tmp/nilewood-next/nilewood-next.tar.gz 2>/dev/null || echo 0)
-          echo "tarball bytes: $S1 -> $S2 in 8s (rate $(( (S2-S1)/8 )) B/s)"
-          echo "=== processes ==="; ps aux | grep -E "scp|deploy-nextjs|server.js|next-server|sshpass|certbot" | grep -v grep
-          echo "=== ports ==="; ss -ltnp 2>/dev/null | grep -E ":(3000|80|443)"
-          echo "=== service ==="; systemctl status nile-wood --no-pager 2>&1 | head -15
-          echo "=== /var/www ==="; ls -la /var/www/ 2>&1
-          echo "=== backups ==="; ls -lht /root/nile-wood-backups/ 2>&1 | head -12
-          echo "=== disk ==="; df -h / | tail -1
-          echo "=== site local ==="; curl -s -o /dev/null -w "next health: %{http_code}\n" --max-time 5 http://127.0.0.1:3000/api/health || true
-          echo "=== network tests ==="
-          timeout 20 curl -sS -o /dev/null -w "npmjs: %{http_code} in %{time_total}s\n" https://registry.npmjs.org/next 2>&1 || echo "npmjs: FAILED"
-          timeout 20 curl -sS -o /dev/null -w "npmmirror: %{http_code} in %{time_total}s\n" https://registry.npmmirror.com/next 2>&1 || echo "npmmirror: FAILED"
-          timeout 20 curl -sS -o /dev/null -w "github: %{http_code} in %{time_total}s\n" https://github.com 2>&1 || echo "github: FAILED"
-          timeout 20 curl -sS -o /dev/null -w "codeload: %{http_code} in %{time_total}s\n" https://codeload.github.com/amirabbasly/nile-wood-chemical/tar.gz/refs/heads/main 2>&1 || echo "codeload: FAILED"
-          echo "=== git clone test (depth 1) ==="
-          rm -rf /tmp/probe-clone
-          START=$(date +%s)
-          timeout 180 git clone --depth=1 --single-branch --branch arena/6171edff-nile-wood-chemical https://github.com/amirabbasly/nile-wood-chemical.git /tmp/probe-clone 2>&1 | tail -5
-          RC=$?
-          END=$(date +%s)
-          echo "clone exit=$RC duration=$((END-START))s size=$(du -sh /tmp/probe-clone 2>/dev/null | cut -f1)"
-          echo "=== nginx active site ==="; grep -R "proxy_pass\|root " /etc/nginx/sites-enabled/ 2>/dev/null | head
-          echo "=== nginx error tail ==="; tail -n 20 /var/log/nginx/error.log 2>/dev/null
-          REMOTE
-          echo "ssh exit=$?" >> deploy/probe-output.txt
+          {
+            echo "host_len=${#SERVER_HOST} user_len=${#SERVER_USER} pass_len=${#SERVER_PASSWORD} port=${SERVER_PORT:-22}"
+          } > deploy/probe-output.txt
+          if [ -z "$SERVER_HOST" ] || [ -z "$SERVER_USER" ] || [ -z "$SERVER_PASSWORD" ]; then
+            echo "SECRETS_MISSING" >> deploy/probe-output.txt
+          else
+            sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+              -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST" "bash -s" \
+              < deploy/probe-remote.sh >> deploy/probe-output.txt 2>&1
+            echo "ssh exit=$?" >> deploy/probe-output.txt
+          fi
       - name: Commit probe output
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add deploy/probe-output.txt
           git commit -m "Probe result" || exit 0
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
           git push origin HEAD:${{ github.ref_name }}
