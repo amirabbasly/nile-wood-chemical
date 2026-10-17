@@ -94,6 +94,15 @@ export default function Home() {
         {benefits.map(({ icon: Icon, title, text }) => <div key={title}><Icon size={28} /><p><strong>{title}</strong><small>{text}</small></p></div>)}
       </div></section>
 
+      <section className="reference-guide-feature"><div className="container">
+        <div className="reference-guide-intro"><span>یک انتخاب آگاهانه</span><h2>برای هر چوب، پوشش مناسب خودش را انتخاب کنید</h2><p>قبل از خرید، کاربرد محصول، محل اجرا و جلوه نهایی را بشناسید. راهنماهای کوتاه نایل وود کمک می‌کنند انتخابتان را با اطمینان بیشتری انجام دهید.</p><Link href="/guide">مشاهده همه راهنماها <ArrowLeft size={17} /></Link></div>
+        <div className="reference-guide-cards">
+          <Link href="/guide/wood-stain"><div><Image src="/images/landing/category-stain.png" alt="راهنمای انتخاب رنگ چوب" fill sizes="(max-width: 700px) 100vw, 25vw" className="object-cover" /></div><span>راهنمای انتخاب</span><h3>رنگ چوب</h3><small>پایه آب یا حلال؟ شفاف یا پوششی؟</small><ArrowLeft size={17} /></Link>
+          <Link href="/guide/wood-oil"><div><Image src="/images/landing/category-oil.png" alt="راهنمای انتخاب روغن چوب" fill sizes="(max-width: 700px) 100vw, 25vw" className="object-cover" /></div><span>راهنمای خرید</span><h3>روغن چوب</h3><small>پوشش طبیعی برای داخل یا فضای باز</small><ArrowLeft size={17} /></Link>
+          <Link href="/guide/sealer-clearcoat"><div><Image src="/images/landing/category-clear.png" alt="راهنمای سیلر و کیلر چوب" fill sizes="(max-width: 700px) 100vw, 25vw" className="object-cover" /></div><span>راهنمای اجرا</span><h3>سیلر و کیلر</h3><small>شناخت زیرکار و لایه نهایی</small><ArrowLeft size={17} /></Link>
+        </div>
+      </div></section>
+
       <section className="reference-categories"><div className="container">
         <div className="reference-centered-title"><span>دسترسی سریع</span><h2>{content.categoryTitle}</h2><p>{content.categoryText}</p></div>
         <div className="reference-category-grid">
