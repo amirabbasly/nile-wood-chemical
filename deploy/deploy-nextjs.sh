@@ -30,6 +30,18 @@ log()  { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m[!] %s\033[0m\n' "$*"; }
 die()  { printf '\033[1;31m[x] %s\033[0m\n' "$*" >&2; exit 1; }
 
+ROLLBACK_DIR="${BACKUP_DIR}/next-old-${STAMP}"
+rollback_next() {
+  warn "بازگردانی نسخه قبلی Next.js"
+  systemctl stop nile-wood 2>/dev/null || true
+  if [ -d "$ROLLBACK_DIR" ]; then
+    rm -rf "$APP_DIR"
+    mv "$ROLLBACK_DIR" "$APP_DIR"
+    systemctl start nile-wood 2>/dev/null || true
+    log "نسخه قبلی بازگردانده شد (اگر وجود داشت)."
+  fi
+}
+
 [ "$(id -u)" = "0" ] || die "این اسکریپت باید با کاربر root اجرا شود."
 [ -f "$BUNDLE" ] || die "بسته استقرار پیدا نشد: $BUNDLE"
 command -v node >/dev/null || die "Node.js نصب نیست."
@@ -54,6 +66,9 @@ if [ -d "$WP_DIR" ]; then
     && log "بکاپ فایل‌ها: ${BACKUP_DIR}/wordpress-${STAMP}.tar.gz" \
     || warn "بکاپ فایل‌های وردپرس انجام نشد (ادامه می‌دهیم)."
 fi
+
+# توقف سرویس Next قبلی (در استقرار مجدد)
+systemctl stop nile-wood 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # 2) بکاپ تنظیمات فعلی nginx
@@ -87,10 +102,10 @@ chown -R www-data:www-data "$NEW_DIR"
 chmod -R u+rwX,go+rX "$NEW_DIR"
 
 if [ -d "$APP_DIR" ]; then
-  mv "$APP_DIR" "${BACKUP_DIR}/next-old-${STAMP}"
+  mv "$APP_DIR" "$ROLLBACK_DIR"
 fi
 mv "$NEW_DIR" "$APP_DIR"
-log "نسخه قبلی Next (در صورت وجود) به ${BACKUP_DIR}/next-old-${STAMP} منتقل شد."
+log "نسخه قبلی Next (در صورت وجود) به ${ROLLBACK_DIR} منتقل شد."
 
 # ---------------------------------------------------------------------------
 # 4) سرویس systemd (پایدار، با ری‌استارت خودکار؛ جایگزین PM2)
@@ -149,6 +164,7 @@ done
 if [ "$HEALTH_OK" != "1" ]; then
   warn "سایت بالا نیامد. لاگ سرویس:"
   journalctl -u nile-wood -n 60 --no-pager || true
+  rollback_next
   die "استقرار متوقف شد؛ وردپرس دست‌نخورده باقی ماند."
 fi
 log "Next.js سالم است: $(curl -fsS http://127.0.0.1:${APP_PORT}/api/health)"
