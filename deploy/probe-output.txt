@@ -1,2 +1,0 @@
-host_len=0 user_len=0 pass_len=0 port=22
-SECRETS_MISSING
