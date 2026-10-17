@@ -88,6 +88,14 @@ ssh root@SERVER_IP
 DOMAIN=nilewoodchem.com bash /tmp/nilewood-next/deploy-nextjs.sh /tmp/nilewood-next/nilewood-next.tar.gz
 ```
 
+اگر نمی‌خواهید بسته ۷۰ مگابایتی را آپلود کنید (لینک ایران کند است)، بیلد را روی خود سرور انجام دهید:
+
+```bash
+scp deploy/from-source.sh deploy/deploy-nextjs.sh root@SERVER_IP:/tmp/nilewood-deploy/
+ssh root@SERVER_IP
+DOMAIN=nilewoodchem.com BRANCH=main bash /tmp/nilewood-deploy/from-source.sh
+```
+
 اسکریپت خودش بکاپ می‌گیرد، سرویس می‌سازد و وردپرس را کنار می‌گذارد. اگر جایی خطا بدهد، وردپرس دست‌نخورده می‌ماند.
 
 ---
