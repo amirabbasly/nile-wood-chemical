@@ -79,6 +79,19 @@ cp -a /etc/nginx/sites-enabled "$NGINX_BACKUP/sites-enabled" 2>/dev/null || true
 cp -a /etc/nginx/sites-available "$NGINX_BACKUP/sites-available" 2>/dev/null || true
 [ -f "$NGINX_SITE" ] && cp -a "$NGINX_SITE" "$NGINX_BACKUP/${DOMAIN}.conf" || true
 
+restore_nginx() {
+  warn "بازگردانی تنظیمات قبلی nginx"
+  if [ -d "${NGINX_BACKUP}/sites-enabled" ]; then
+    rm -rf /etc/nginx/sites-enabled
+    cp -a "${NGINX_BACKUP}/sites-enabled" /etc/nginx/sites-enabled
+  fi
+  if [ -d "${NGINX_BACKUP}/sites-available" ]; then
+    rm -rf /etc/nginx/sites-available
+    cp -a "${NGINX_BACKUP}/sites-available" /etc/nginx/sites-available
+  fi
+  nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+}
+
 # ---------------------------------------------------------------------------
 # 3) استقرار بسته Next.js (بدون نیاز به npm روی سرور)
 # ---------------------------------------------------------------------------
@@ -320,7 +333,10 @@ else
 fi
 
 ln -sf "$NGINX_SITE" "$NGINX_LINK"
-nginx -t || die "کانفیگ nginx نامعتبر است."
+if ! nginx -t; then
+  restore_nginx
+  die "کانفیگ nginx نامعتبر است؛ تنظیمات قبلی بازگردانده شد."
+fi
 systemctl reload nginx
 
 # اگر گواهی نبود، certbot خودش SSL را تنظیم می‌کند
@@ -342,6 +358,8 @@ if [ "$LOCAL_CODE" != "200" ]; then
   warn "nginx نتوانست به Next وصل شود. لاگ‌ها:"
   tail -n 40 /var/log/nginx/error.log || true
   journalctl -u nile-wood -n 40 --no-pager || true
+  restore_nginx
+  rollback_next
   die "استقرار ناموفق بود؛ بررسی لازم است."
 fi
 
