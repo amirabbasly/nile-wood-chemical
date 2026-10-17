@@ -1,0 +1,135 @@
+name: Deploy Next.js to production
+
+# استقرار روی سرور با اجرای دستی (workflow_dispatch) یا پوش به main.
+# حالت پیش‌فرض source است: سورس روی سرور از GitHub گرفته و همان‌جا بیلد می‌شود
+# (برای لینک‌های کند ایران مناسب‌تر است و نیازی به آپلود بسته بزرگ نیست).
+# حالت bundle: بیلد در GitHub Actions و آپلود بسته standalone با SCP.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "روش استقرار"
+        type: choice
+        options: [source, bundle]
+        default: source
+      diagnose_only:
+        description: "فقط جمع‌آوری اطلاعات سرور (بدون استقرار)"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "deploy/**"
+      - ".github/workflows/deploy-next.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+      DOMAIN: nilewoodchem.com
+      APP_PORT: "3000"
+      MODE: ${{ inputs.mode || 'source' }}
+      BRANCH: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=0
+          for v in SERVER_HOST SERVER_USER SERVER_PASSWORD; do
+            if [ -z "${!v}" ]; then echo "::error::Secret $v is not set"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Install sshpass
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+
+      - name: Setup Node
+        if: ${{ inputs.mode == 'bundle' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Fetch production .env.local from server
+        if: ${{ inputs.mode == 'bundle' }}
+        run: |
+          SSH=(sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST")
+          ENV_B64=$("${SSH[@]}" 'for f in /var/www/nile-wood-chemical/.env.local /var/www/nile-wood/.env.local /var/www/nilewoodchem.com/.env.local; do if [ -f "$f" ]; then base64 -w0 "$f"; break; fi; done' 2>/dev/null || true)
+          if [ -n "$ENV_B64" ]; then
+            echo "$ENV_B64" | base64 -d > .env.local
+            while IFS='=' read -r key value; do
+              case "$key" in ''|\#*) continue;; esac
+              [ -n "$value" ] && echo "::add-mask::$value"
+            done < .env.local
+            echo "environment file fetched from server ($(wc -l < .env.local) lines)"
+          else
+            echo "::warning::هیچ .env.local روی سرور پیدا نشد؛ سایت با داده‌های پیش‌فرض بیلد می‌شود."
+          fi
+
+      - name: Build standalone bundle (mode=bundle)
+        if: ${{ inputs.mode == 'bundle' }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          rm -rf bundle nilewood-next.tar.gz
+          mkdir -p bundle
+          cp -a .next/standalone/. bundle/
+          mkdir -p bundle/.next
+          cp -a .next/static bundle/.next/static
+          cp -a public bundle/public
+          if [ -f .env.local ]; then cp .env.local bundle/.env.local; fi
+          tar -czf nilewood-next.tar.gz -C bundle .
+          ls -lh nilewood-next.tar.gz
+
+      - name: Collect server diagnostics
+        if: always()
+        run: |
+          SSH=(sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST")
+          "${SSH[@]}" "DOMAIN=$DOMAIN bash -s" < deploy/diagnose.sh > pre-deploy-diagnostics.txt 2>&1 || true
+          tail -n 80 pre-deploy-diagnostics.txt || true
+
+      - name: Deploy to server
+        if: ${{ inputs.diagnose_only != true && inputs.diagnose_only != 'true' }}
+        run: |
+          SSH=(sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST")
+          SCP=(sshpass -p "$SERVER_PASSWORD" scp -o StrictHostKeyChecking=accept-new -P "${SERVER_PORT:-22}")
+          "${SSH[@]}" 'mkdir -p /tmp/nilewood-deploy'
+          "${SCP[@]}" deploy/deploy-nextjs.sh deploy/from-source.sh "$SERVER_USER@$SERVER_HOST:/tmp/nilewood-deploy/"
+          if [ "$MODE" = "bundle" ]; then
+            "${SCP[@]}" nilewood-next.tar.gz "$SERVER_USER@$SERVER_HOST:/tmp/nilewood-deploy/"
+            "${SSH[@]}" "DOMAIN=$DOMAIN APP_PORT=$APP_PORT bash /tmp/nilewood-deploy/deploy-nextjs.sh /tmp/nilewood-deploy/nilewood-next.tar.gz" 2>&1 | tee deploy-result.txt
+          else
+            "${SSH[@]}" "DOMAIN=$DOMAIN APP_PORT=$APP_PORT BRANCH=$BRANCH bash /tmp/nilewood-deploy/from-source.sh" 2>&1 | tee deploy-result.txt
+          fi
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-logs
+          path: |
+            pre-deploy-diagnostics.txt
+            deploy-result.txt
+          if-no-files-found: ignore
