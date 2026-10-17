@@ -128,7 +128,7 @@ if command -v pm2 >/dev/null 2>&1; then
   pm2 delete all >/dev/null 2>&1 || true
   pm2 save --force >/dev/null 2>&1 || true
 fi
-if ss -H -ltn "sport = :${APP_PORT}" 2>/dev/null | grep -q .; then
+if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -q ":${APP_PORT}$"; then
   warn "پورت ${APP_PORT} اشغال است؛ پروسه‌های Node/Next قبلی بسته می‌شوند."
   pkill -f "next-server" 2>/dev/null || true
   pkill -f "/var/www/nile-wood-chemical" 2>/dev/null || true
