@@ -22,7 +22,8 @@ export function Footer() {
           <h4>دسترسی سریع</h4>
           <Link href="/shop">فروشگاه</Link>
           <Link href="/products">محصولات</Link>
-          <Link href="/blog">مجله</Link>
+          <Link href="/guide">راهنمای خرید</Link>
+          <Link href="/blog">مجله تخصصی</Link>
           <Link href="/terms">قوانین و مقررات</Link>
           <Link href="/account/orders">سفارشات کاربر</Link>
         </div>
