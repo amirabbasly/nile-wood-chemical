@@ -4,6 +4,7 @@ name: Deploy Next.js to production
 # بیلد در GitHub Actions انجام می‌شود تا سرور ایران به npm/GitHub نیاز نداشته باشد.
 
 on:
+  workflow_call:
   workflow_dispatch:
     inputs:
       diagnose_only:
